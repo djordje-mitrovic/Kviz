@@ -33,7 +33,7 @@ func main() {
 		if(i == 0){
 			fmt.Print("question", msg)
 		} else {
-			fmt.Print(i, ": ", msg)
+			fmt.Print(i, ") ", msg)
 		}
 		i++
 	}
