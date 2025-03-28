@@ -52,12 +52,12 @@ func (s *Server) getMessagesFromUser() {
 	s.messages = append(s.messages, msg)
 	
 	for i := 0; i < 4; i++ {
-		fmt.Printf(i+1, ": ")
-		msg, _ := reader.ReadString('\n')
+		fmt.Printf("%d) ", i+1)
+		msg, _ = reader.ReadString('\n')
 		s.messages = append(s.messages, msg)
 	}
 	fmt.Printf("tacan odgovor: ")
-	msg, _ := reader.ReadString('\n')
+	msg, _ = reader.ReadString('\n')
 	s.messages = append(s.messages, msg)
 }
 
