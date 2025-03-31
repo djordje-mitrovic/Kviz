@@ -12,7 +12,9 @@ import (
 type Server struct {
 	listenAddr string
 	ln         net.Listener
-	messages   []string
+	questions  []string
+	answers    []string
+	options    [][]string
 }
 
 func NewServer(listenAddr string) *Server {
@@ -30,12 +32,12 @@ func (s *Server) Start() error {
 	}
 	defer ln.Close()
 	s.ln = ln
-	fmt.Println("Server is listening on", s.listenAddr)
+	fmt.Println("Server je na adresi: ", s.listenAddr)
 
 	for {
 		conn, err := s.ln.Accept()
 		if err != nil {
-			fmt.Println("Accept error:", err)
+			fmt.Println("Prihvati gresku:", err)
 			continue
 		}
 
@@ -45,42 +47,69 @@ func (s *Server) Start() error {
 
 func (s *Server) getMessagesFromUser() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Enter 4 messages to send to the client:")
-	
-	fmt.Println("Enter the question:")
-	msg, _ := reader.ReadString('\n')
-	s.messages = append(s.messages, msg)
-	
-	for i := 0; i < 4; i++ {
-		fmt.Printf("%d) ", i+1)
-		msg, _ = reader.ReadString('\n')
-		s.messages = append(s.messages, msg)
+	fmt.Println("Unesi 10 pitanja, 4 opcije po pitanju i tacan odgovor:")
+
+	// Unos pitanja
+	for i := 0; i < 10; i++ {
+		fmt.Printf("Unesi pitanje %d: ", i+1)
+		msg, _ := reader.ReadString('\n')
+		s.questions = append(s.questions, msg)
+
+		// Unos ponuđenih odgovora
+		options := make([]string, 4)
+		for j := 0; j < 4; j++ {
+			fmt.Printf("Unesi opciju %d za pitanje %d: ", j+1, i+1)
+			option, _ := reader.ReadString('\n')
+			options[j] = option
+		}
+		s.options = append(s.options, options)
+
+		// Unos tačnog odgovora
+		fmt.Printf("Unesi broj tacnog odgovora (1-4) za pitanje %d: ", i+1)
+		var correctAnswer int
+		_, err := fmt.Scanf("%d\n", &correctAnswer)
+		if err != nil {
+			fmt.Println("Pogresan unos")
+		}
+		// Dodajemo odgovarajući ponuđeni odgovor
+		s.answers = append(s.answers, options[correctAnswer-1])
 	}
-	fmt.Printf("tacan odgovor: ")
-	msg, _ = reader.ReadString('\n')
-	s.messages = append(s.messages, msg)
 }
 
 func (s *Server) handleClient(conn net.Conn) {
 	defer conn.Close()
 
-	for _, msg := range s.messages {
-		conn.Write([]byte(msg))
+	// Interaktivno slanje pitanja i čekanje odgovora
+	for i := 0; i < 10; i++ {
+		// Šaljemo pitanje klijentu
+		conn.Write([]byte(s.questions[i]))
 		time.Sleep(1 * time.Second)
-	}
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println("Error reading response from client:", err)
-		return
-	}
+		// Šaljemo ponuđene odgovore
+		for j, option := range s.options[i] {
+			conn.Write([]byte(fmt.Sprintf("%d) %s", j+1, option)))
+		}
 
-	fmt.Println("Client selected:", response)
-	if(response == s.messages[5]) {
-		fmt.Println("Odgovor je tacan")
-	} else {
-		fmt.Println("Odgovor je netacan")
+		// Čekamo odgovor od klijenta
+		reader := bufio.NewReader(conn)
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Greska pri citanju sa klijenta:", err)
+			return
+		}
+
+		// Proveravamo tačnost odgovora
+		tacno := "Odgovor je netačan\n"
+		if response == s.answers[i] {
+			tacno = "Odgovor je tačan\n"
+		}
+
+		// Šaljemo rezultat klijentu
+		_, err = conn.Write([]byte(tacno))
+		if err != nil {
+			fmt.Println("Greska prilikom slanja poruke klijentu:", err)
+			return
+		}
 	}
 }
 

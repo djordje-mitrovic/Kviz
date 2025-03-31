@@ -4,61 +4,65 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"os"
+	"strings"
 )
 
 func main() {
 	conn, err := net.Dial("tcp", "localhost:8082")
 	if err != nil {
-		fmt.Println("Connection failed:", err)
+		fmt.Println("Konekcija je neuspela:", err)
 		return
 	}
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
-	receivedMessages := make([]string, 5) // Definišemo niz za čuvanje poruka
 
-	for i := 0; i < 5; i++ {
+	// Interaktivno odgovaranje na pitanja
+	for i := 0; i < 10; i++ {
+		// Prima pitanje od servera
 		msg, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error receiving message from server:", err)
+			fmt.Println("Greska prilikom citanja sa servera:", err)
 			return
 		}
-		receivedMessages[i] = msg // Čuvamo poruku u nizu
-	}
 
-	// Ispisujemo sve primljene poruke nakon što su sve sačuvane
-	i := 0
-	for _, msg := range receivedMessages {
-		if(i == 0){
-			fmt.Print("question", msg)
-		} else {
-			fmt.Print(i, ") ", msg)
+		// Ispisuje pitanje
+		fmt.Printf("Pitanje %d: %s", i+1, msg)
+
+		// Prima ponuđene odgovore
+		for j := 0; j < 4; j++ {
+			option, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Println("Greska prilikom dobijanja opcije sa servera:", err)
+				return
+			}
+			fmt.Print(option)
 		}
-		i++
-	}
 
-
-	fmt.Print("Select a message to return: ")
-	userInput := bufio.NewReader(os.Stdin)
-	selectedMessage, _ := userInput.ReadString('\n')
-
-	// Proveravamo da li se unesena poruka nalazi u nizu receivedMessages
-	messageFound := false
-	for _, msg := range receivedMessages {
-		if selectedMessage == msg {
-			messageFound = true
-			break
+		// Unos odgovora
+		fmt.Print("Izaberite jedan od ponuđenih odgovora (1-4): ")
+		var selectedOption int
+		_, err = fmt.Scanf("%d\n", &selectedOption)
+		if err != nil || selectedOption < 1 || selectedOption > 4 {
+			fmt.Println("Pogresan unos")
+			return
 		}
-	}
 
-	// Ako je poruka pronađena u nizu, šaljemo je serveru, inače prijavljujemo grešku
-	if messageFound {
-		_, err := conn.Write([]byte(selectedMessage))
+		// Šalje odgovor serveru
+		_, err = conn.Write([]byte(fmt.Sprintf("%d\n", selectedOption)))
 		if err != nil {
-			fmt.Println("Error sending response to server:", err)
+			fmt.Println("Greska prilikom slanja odgovora serveru:", err)
+			return
 		}
-	} else {
-		fmt.Println("Error: The selected message is not in the list.")
+
+		// Čitanje odgovora od servera (da li je tačan odgovor)
+		message, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Greska prilikom citanja poruke sa servera:", err)
+			return
+		}
+
+		// Ispisivanje rezultata
+		fmt.Println("Odgovor od servera:", strings.TrimSpace(message))
 	}
 }
