@@ -6,7 +6,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
+	"strings"
+	//"time"
 )
 
 type Server struct {
@@ -32,7 +33,7 @@ func (s *Server) Start() error {
 	}
 	defer ln.Close()
 	s.ln = ln
-	fmt.Println("Server je na adresi: ", s.listenAddr)
+	fmt.Println("Server je na adresi", s.listenAddr)
 
 	for {
 		conn, err := s.ln.Accept()
@@ -47,7 +48,7 @@ func (s *Server) Start() error {
 
 func (s *Server) getMessagesFromUser() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Unesi 10 pitanja, 4 opcije po pitanju i tacan odgovor:")
+	fmt.Println("Unesi 10 pitanja, 4 opcije po pitanju, i tacan odgovor:")
 
 	// Unos pitanja
 	for i := 0; i < 10; i++ {
@@ -58,7 +59,7 @@ func (s *Server) getMessagesFromUser() {
 		// Unos ponuđenih odgovora
 		options := make([]string, 4)
 		for j := 0; j < 4; j++ {
-			fmt.Printf("Unesi opciju %d za pitanje %d: ", j+1, i+1)
+			fmt.Printf("Unesi opciju %d za pitaje %d: ", j+1, i+1)
 			option, _ := reader.ReadString('\n')
 			options[j] = option
 		}
@@ -69,10 +70,10 @@ func (s *Server) getMessagesFromUser() {
 		var correctAnswer int
 		_, err := fmt.Scanf("%d\n", &correctAnswer)
 		if err != nil {
-			fmt.Println("Pogresan unos")
+			fmt.Println("Pogresan ulaz")
 		}
 		// Dodajemo odgovarajući ponuđeni odgovor
-		s.answers = append(s.answers, options[correctAnswer-1])
+		s.answers = append(s.answers, fmt.Sprintf("%d", correctAnswer))
 	}
 }
 
@@ -80,10 +81,10 @@ func (s *Server) handleClient(conn net.Conn) {
 	defer conn.Close()
 
 	// Interaktivno slanje pitanja i čekanje odgovora
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2; i++ {
 		// Šaljemo pitanje klijentu
 		conn.Write([]byte(s.questions[i]))
-		time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second)
 
 		// Šaljemo ponuđene odgovore
 		for j, option := range s.options[i] {
@@ -94,20 +95,23 @@ func (s *Server) handleClient(conn net.Conn) {
 		reader := bufio.NewReader(conn)
 		response, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Greska pri citanju sa klijenta:", err)
+			fmt.Println("Greska prilikom citanja odgovora klijenta:", err)
 			return
 		}
 
 		// Proveravamo tačnost odgovora
 		tacno := "Odgovor je netačan\n"
-		if response == s.answers[i] {
+		//num, _ := strconv.Atoi(response)
+
+		fmt.Printf("%s se poredi sa %s\n", strings.TrimSpace(response), s.answers[i])
+		if strings.TrimSpace(response) == s.answers[i] {
 			tacno = "Odgovor je tačan\n"
 		}
 
 		// Šaljemo rezultat klijentu
 		_, err = conn.Write([]byte(tacno))
 		if err != nil {
-			fmt.Println("Greska prilikom slanja poruke klijentu:", err)
+			fmt.Println("Greska prilikom slanja odgovora klijentu:", err)
 			return
 		}
 	}

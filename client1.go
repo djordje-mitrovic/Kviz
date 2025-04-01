@@ -10,7 +10,7 @@ import (
 func main() {
 	conn, err := net.Dial("tcp", "localhost:8082")
 	if err != nil {
-		fmt.Println("Konekcija je neuspela:", err)
+		fmt.Println("Konekcija neuspela:", err)
 		return
 	}
 	defer conn.Close()
@@ -18,11 +18,11 @@ func main() {
 	reader := bufio.NewReader(conn)
 
 	// Interaktivno odgovaranje na pitanja
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2; i++ {
 		// Prima pitanje od servera
 		msg, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Greska prilikom citanja sa servera:", err)
+			fmt.Println("Greska prilikom primanja poruke sa servera:", err)
 			return
 		}
 
@@ -33,7 +33,7 @@ func main() {
 		for j := 0; j < 4; j++ {
 			option, err := reader.ReadString('\n')
 			if err != nil {
-				fmt.Println("Greska prilikom dobijanja opcije sa servera:", err)
+				fmt.Println("Greska prilikom primanja opcije sa servera:", err)
 				return
 			}
 			fmt.Print(option)
@@ -51,7 +51,7 @@ func main() {
 		// Šalje odgovor serveru
 		_, err = conn.Write([]byte(fmt.Sprintf("%d\n", selectedOption)))
 		if err != nil {
-			fmt.Println("Greska prilikom slanja odgovora serveru:", err)
+			fmt.Println("Greksa prilikom slanja odgovora na server:", err)
 			return
 		}
 
