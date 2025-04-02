@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"strings"
-	//"time"
+	"time"
+	"math/rand"
+	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
 )
+
+var broj_pitanja = 2
 
 type Server struct {
 	listenAddr string
@@ -25,7 +29,7 @@ func NewServer(listenAddr string) *Server {
 }
 
 func (s *Server) Start() error {
-	s.getMessagesFromUser()
+	s.getMessagesFromDB()
 
 	ln, err := net.Listen("tcp", s.listenAddr)
 	if err != nil {
@@ -46,49 +50,82 @@ func (s *Server) Start() error {
 	}
 }
 
-func (s *Server) getMessagesFromUser() {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Unesi 10 pitanja, 4 opcije po pitanju, i tacan odgovor:")
-
-	// Unos pitanja
-	for i := 0; i < 10; i++ {
-		fmt.Printf("Unesi pitanje %d: ", i+1)
-		msg, _ := reader.ReadString('\n')
-		s.questions = append(s.questions, msg)
-
-		// Unos ponuđenih odgovora
-		options := make([]string, 4)
-		for j := 0; j < 4; j++ {
-			fmt.Printf("Unesi opciju %d za pitaje %d: ", j+1, i+1)
-			option, _ := reader.ReadString('\n')
-			options[j] = option
-		}
-		s.options = append(s.options, options)
-
-		// Unos tačnog odgovora
-		fmt.Printf("Unesi broj tacnog odgovora (1-4) za pitanje %d: ", i+1)
-		var correctAnswer int
-		_, err := fmt.Scanf("%d\n", &correctAnswer)
-		if err != nil {
-			fmt.Println("Pogresan ulaz")
-		}
-		// Dodajemo odgovarajući ponuđeni odgovor
-		s.answers = append(s.answers, fmt.Sprintf("%d", correctAnswer))
+func (s *Server) getMessagesFromDB() {
+	db, err := sql.Open("sqlite3", "quiz.db")
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer db.Close()
+
+	//Mapa za proveravanje vec postojacih pitanja
+	var askedQuestions = make(map[int]bool)
+	
+	
+	// Unos pitanja
+	for {
+		var id int
+		rand.Seed(time.Now().UnixNano())
+		err = db.QueryRow("SELECT id FROM questions ORDER BY RANDOM() LIMIT 1").Scan(&id)
+		
+		fmt.Println("Id: ", id)
+		
+		if !askedQuestions[id] {
+			askedQuestions[id] = true
+			
+			if err != nil {
+				log.Fatal(err)
+			}
+			var pitanje, odg1, odg2, odg3, odg4, tacan_odg string
+		
+			err = db.QueryRow("SELECT pitanja, odgovor1, odgovor2, odgovor3, odgovor4, tacan_odgovor FROM questions WHERE id = ?", id).
+			Scan(&pitanje, &odg1, &odg2, &odg3, &odg4, &tacan_odg)
+		
+			//fmt.Println(pitanje, " ", odg1, " ", odg2, " ", odg3, " ", odg4, " ", tacan_odg)
+		
+			if err != nil {
+				log.Fatal(err)
+			}
+		
+			s.questions = append(s.questions, pitanje)
+
+			// Unos ponuđenih odgovora
+			options := make([]string, 4)
+		
+			options[0] = odg1
+			options[1] = odg2
+			options[2] = odg3
+			options[3] = odg4
+			
+			s.options = append(s.options, options)
+
+			// Dodajemo odgovarajući ponuđeni odgovor
+			s.answers = append(s.answers, tacan_odg)
+		
+		}
+		
+		if len(askedQuestions) >= broj_pitanja {
+				fmt.Println("Broj postavljenih pitanja: ", len(askedQuestions))
+				break
+			}
+		
+	}
+	
 }
 
 func (s *Server) handleClient(conn net.Conn) {
 	defer conn.Close()
 
+	poeni := 0
+
 	// Interaktivno slanje pitanja i čekanje odgovora
-	for i := 0; i < 2; i++ {
+	for i := 0; i < broj_pitanja; i++ {
 		// Šaljemo pitanje klijentu
-		conn.Write([]byte(s.questions[i]))
+		conn.Write([]byte(s.questions[i] + "\n"))
 		//time.Sleep(1 * time.Second)
 
 		// Šaljemo ponuđene odgovore
 		for j, option := range s.options[i] {
-			conn.Write([]byte(fmt.Sprintf("%d) %s", j+1, option)))
+			conn.Write([]byte(fmt.Sprintf("%d) %s\n", j+1, option)))
 		}
 
 		// Čekamo odgovor od klijenta
@@ -106,6 +143,7 @@ func (s *Server) handleClient(conn net.Conn) {
 		fmt.Printf("%s se poredi sa %s\n", strings.TrimSpace(response), s.answers[i])
 		if strings.TrimSpace(response) == s.answers[i] {
 			tacno = "Odgovor je tačan\n"
+			poeni+=1
 		}
 
 		// Šaljemo rezultat klijentu
@@ -115,6 +153,9 @@ func (s *Server) handleClient(conn net.Conn) {
 			return
 		}
 	}
+
+	conn.Write([]byte(fmt.Sprintf("%d\n", poeni)))
+
 }
 
 func main() {

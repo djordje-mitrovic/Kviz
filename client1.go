@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var broj_pitanja = 2
+
 func main() {
 	conn, err := net.Dial("tcp", "localhost:8082")
 	if err != nil {
@@ -18,14 +20,14 @@ func main() {
 	reader := bufio.NewReader(conn)
 
 	// Interaktivno odgovaranje na pitanja
-	for i := 0; i < 2; i++ {
+	for i := 0; i < broj_pitanja; i++ {
 		// Prima pitanje od servera
 		msg, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println("Greska prilikom primanja poruke sa servera:", err)
 			return
 		}
-
+		
 		// Ispisuje pitanje
 		fmt.Printf("Pitanje %d: %s", i+1, msg)
 
@@ -65,4 +67,13 @@ func main() {
 		// Ispisivanje rezultata
 		fmt.Println("Odgovor od servera:", strings.TrimSpace(message))
 	}
+
+	message, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("Greska prilikom citanja poruke sa servera:", err)
+		return
+	}
+
+	fmt.Println("Odgovor od servera: Osvojili ste", strings.TrimSpace(message), "poena")
+
 }
