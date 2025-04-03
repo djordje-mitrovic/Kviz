@@ -1,3 +1,5 @@
+
+
 package main
 
 import(
@@ -19,7 +21,6 @@ func main () {
 	defer db.Close()
 
 	createTable(db)
-
 }
 
 func createTable(db *sql.DB) {
@@ -42,4 +43,3 @@ func createTable(db *sql.DB) {
 	fmt.Println("Tabela je kreirana ili vec postoji.")
 
 }
-
