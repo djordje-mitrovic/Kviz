@@ -11,5 +11,5 @@ This project is two-player quiz game written in go programming language. In this
 ## Technologies
 - **Go**: Backend logic, TCP server
 - **Fyne**: GUI client for interface
-- **
--
+- **SQLite**: Database created for questions and answers
+- **TCP**: Network communication for multiplayer gameplay
