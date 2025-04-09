@@ -31,15 +31,8 @@ func (m myTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 		return theme.DefaultTheme().Color(n, v)
 	}
 }
-
-func (m myTheme) Font(style fyne.TextStyle) fyne.Resource {
-	return theme.DefaultTheme().Font(style)
-}
-
-func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
-	return theme.DefaultTheme().Icon(name)
-}
-
+func (m myTheme) Font(style fyne.TextStyle) fyne.Resource  { return theme.DefaultTheme().Font(style) }
+func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(name) }
 func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case "text":
@@ -58,12 +51,18 @@ func main() {
 	w := a.NewWindow("Kviz")
 	w.Resize(fyne.NewSize(600, 400))
 
+	mainContent := container.NewVBox()
+	showMainMenu(w, mainContent)
+
+	w.SetContent(mainContent)
+	w.ShowAndRun()
+}
+
+func showMainMenu(w fyne.Window, content *fyne.Container) {
 	entryRoomCode := widget.NewEntry()
 	entryRoomCode.SetPlaceHolder("Unesi kod sobe")
-	entryRoomCode.Resize(fyne.NewSize(200, 40))
 
 	var conn net.Conn
-	mainContent := container.NewVBox()
 
 	title := widget.NewLabel("🎉 Dobrodošao u Kviz! 🎉")
 	title.Alignment = fyne.TextAlignCenter
@@ -87,14 +86,14 @@ func main() {
 		info := widget.NewLabel("Tvoj kod sobe: " + roomCode)
 		info.Alignment = fyne.TextAlignCenter
 
-		mainContent.Objects = []fyne.CanvasObject{
+		content.Objects = []fyne.CanvasObject{
 			layout.NewSpacer(),
 			info,
 			waitLabel,
 			layout.NewSpacer(),
 		}
-		mainContent.Refresh()
-		waitForStart(conn, reader, mainContent, w)
+		content.Refresh()
+		waitForStart(conn, reader, content, w)
 	})
 
 	btnJoin := widget.NewButton("Pridruži se sobi", func() {
@@ -123,16 +122,16 @@ func main() {
 		waitLabel := widget.NewLabel("Čeka se početak")
 		startAnimation(waitLabel)
 
-		mainContent.Objects = []fyne.CanvasObject{
+		content.Objects = []fyne.CanvasObject{
 			layout.NewSpacer(),
 			waitLabel,
 			layout.NewSpacer(),
 		}
-		mainContent.Refresh()
-		waitForStart(conn, reader, mainContent, w)
+		content.Refresh()
+		waitForStart(conn, reader, content, w)
 	})
 
-	mainMenu := container.NewVBox(
+	menu := container.NewVBox(
 		layout.NewSpacer(),
 		title,
 		layout.NewSpacer(),
@@ -142,12 +141,10 @@ func main() {
 		layout.NewSpacer(),
 	)
 
-	mainContent.Add(mainMenu)
-	w.SetContent(mainContent)
-	w.ShowAndRun()
+	content.Objects = []fyne.CanvasObject{menu}
+	content.Refresh()
 }
 
-// ⏳ Animacija "Čeka se..." koja se ponavlja
 func startAnimation(label *widget.Label) {
 	go func() {
 		dots := []string{"", ".", "..", "..."}
@@ -176,8 +173,23 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 		}
 		question = strings.TrimSpace(question)
 
+		// Kraj kviza
 		if strings.HasPrefix(question, "Pobedio") || strings.HasPrefix(question, "Izgubio") || strings.HasPrefix(question, "Nereseno") {
-			content.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel(question))}
+			labelEnd := widget.NewLabel(question)
+			labelEnd.Alignment = fyne.TextAlignCenter
+			labelEnd.TextStyle = fyne.TextStyle{Bold: true}
+
+			btnBack := widget.NewButton("Vrati se u meni", func() {
+				conn.Close()
+				showMainMenu(w, content)
+			})
+
+			content.Objects = []fyne.CanvasObject{
+				layout.NewSpacer(),
+				labelEnd,
+				layout.NewSpacer(),
+				btnBack,
+			}
 			content.Refresh()
 			return
 		}
