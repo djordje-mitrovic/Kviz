@@ -146,8 +146,6 @@ func (s *Server) getQuestionsForRoom(db *sql.DB) ([]string, [][]string, []string
 func (s *Server) startGame(room *Room) {
 	p1 := room.clients[0]
 	p2 := room.clients[1]
-	defer p1.Close()
-	defer p2.Close()
 
 	r1 := bufio.NewReader(p1)
 	r2 := bufio.NewReader(p2)
@@ -187,6 +185,8 @@ func (s *Server) startGame(room *Room) {
 		p2.Write([]byte(fmt.Sprintf("Nereseno! Osvojio si %d poena!\n", s2)))
 	}
 }
+
+
 
 func main() {
 	server := NewServer(":8082")
