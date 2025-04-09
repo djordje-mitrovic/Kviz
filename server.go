@@ -161,17 +161,14 @@ func (s *Server) startGame(room *Room) {
 		resp2, _ := r2.ReadString('\n')
 		resp1 = strings.TrimSpace(resp1)
 		resp2 = strings.TrimSpace(resp2)
-		msg1, msg2 := "Odgovor je netačan\n", "Odgovor je netačan\n"
 		if resp1 == room.answers[i] {
-			s1++
-			msg1 = "Odgovor je tačan\n"
+    			s1++
 		}
 		if resp2 == room.answers[i] {
-			s2++
-			msg2 = "Odgovor je tačan\n"
+    			s2++
 		}
-		p1.Write([]byte(msg1))
-		p2.Write([]byte(msg2))
+		p1.Write([]byte("TACAN_ODGOVOR " + room.answers[i] + "\n"))
+		p2.Write([]byte("TACAN_ODGOVOR " + room.answers[i] + "\n"))
 	}
 
 	if s1 > s2 {
@@ -192,4 +189,3 @@ func main() {
 	server := NewServer(":8082")
 	log.Fatal(server.Start())
 }
-
