@@ -7,9 +7,9 @@ import (
 	"net"
 	"strings"
 	"time"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -24,15 +24,15 @@ func (m myTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	case "background":
 		return color.NRGBA{R: 0, G: 0, B: 0, A: 0}
 	case "button":
-		return color.NRGBA{R: 0, G: 0, B: 128, A: 109}
+		return color.NRGBA{R: 0, G: 0, B: 129, A: 189}
 	case "text":
 		return color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 	default:
 		return theme.DefaultTheme().Color(n, v)
 	}
 }
-func (m myTheme) Font(style fyne.TextStyle) fyne.Resource  { return theme.DefaultTheme().Font(style) }
-func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(name) }
+func (m myTheme) Font(style fyne.TextStyle) fyne.Resource      { return theme.DefaultTheme().Font(style) }
+func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource   { return theme.DefaultTheme().Icon(name) }
 func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case "text":
@@ -64,7 +64,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 
 	var conn net.Conn
 
-	title := widget.NewLabel("🎉 Dobrodošao u Kviz! 🎉")
+	title := widget.NewLabel("Dobrodošao u Kviz!")
 	title.Alignment = fyne.TextAlignCenter
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
@@ -86,10 +86,16 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 		info := widget.NewLabel("Tvoj kod sobe: " + roomCode)
 		info.Alignment = fyne.TextAlignCenter
 
+		btnBack := widget.NewButton("Nazad", func() {
+			conn.Close()
+			showMainMenu(w, content)
+		})
+
 		content.Objects = []fyne.CanvasObject{
 			layout.NewSpacer(),
 			info,
 			waitLabel,
+			btnBack,
 			layout.NewSpacer(),
 		}
 		content.Refresh()
@@ -122,9 +128,15 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 		waitLabel := widget.NewLabel("Čeka se početak")
 		startAnimation(waitLabel)
 
+		btnBack := widget.NewButton("Nazad", func() {
+			conn.Close()
+			showMainMenu(w, content)
+		})
+
 		content.Objects = []fyne.CanvasObject{
 			layout.NewSpacer(),
 			waitLabel,
+			btnBack,
 			layout.NewSpacer(),
 		}
 		content.Refresh()
@@ -173,13 +185,12 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 		}
 		question = strings.TrimSpace(question)
 
-		// Kraj kviza
 		if strings.HasPrefix(question, "Pobedio") || strings.HasPrefix(question, "Izgubio") || strings.HasPrefix(question, "Nereseno") {
 			labelEnd := widget.NewLabel(question)
 			labelEnd.Alignment = fyne.TextAlignCenter
 			labelEnd.TextStyle = fyne.TextStyle{Bold: true}
 
-			btnBack := widget.NewButton("Vrati se u meni", func() {
+			btnBack := widget.NewButton("Vrati se u pocetni meni", func() {
 				conn.Close()
 				showMainMenu(w, content)
 			})
@@ -204,29 +215,70 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 			options[i] = strings.TrimSpace(options[i])
 		}
 
-		resultLabel := widget.NewLabel("")
-		buttons := []*widget.Button{}
-		for i, opt := range options {
-			idx := i + 1
-			optCopy := opt
-			btn := widget.NewButton(optCopy, func() {
-				conn.Write([]byte(fmt.Sprintf("%d\n", idx)))
-				feedback, _ := reader.ReadString('\n')
-				resultLabel.SetText(strings.TrimSpace(feedback))
-				for _, b := range buttons {
-					b.Disable()
+		buttons := make([]*widget.Button, 4)
+		buttonBoxes := make([]*fyne.Container, 4)
+
+		for i := 0; i < 4; i++ {
+			index := i + 1
+			opt := options[i]
+			btn := widget.NewButton(opt, nil)
+			box := container.NewMax(canvas.NewRectangle(color.White), btn)
+
+			btn.OnTapped = func() {
+				conn.Write([]byte(fmt.Sprintf("%d\n", index)))
+				response, _ := reader.ReadString('\n')
+				response = strings.TrimSpace(response)
+
+				var correct int
+				if strings.HasPrefix(response, "TACAN_ODGOVOR") {
+					parts := strings.Split(response, " ")
+					if len(parts) == 2 {
+						fmt.Sscanf(parts[1], "%d", &correct)
+					}
 				}
-				content.Refresh()
-				time.AfterFunc(2*time.Second, func() {
-					loadNextQuestion()
-				})
-			})
-			btn.Resize(fyne.NewSize(0, 60))
-			buttons = append(buttons, btn)
+
+				for j := 0; j < 4; j++ {
+					btns := buttonBoxes[j].Objects[1].(*widget.Button)
+
+					// Odredi boju
+					var bgColor color.Color
+					if j+1 == correct {
+						bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // zeleno
+					}
+					if j+1 == index && index != correct {
+						bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // crveno
+					}
+
+					// Napravi labelu umesto dugmeta
+					btnSize := btns.Size()
+
+					bg := canvas.NewRectangle(bgColor)
+					bg.SetMinSize(btnSize)
+
+					label := canvas.NewText(btns.Text, color.White)
+					label.Alignment = fyne.TextAlignCenter
+					label.TextStyle = fyne.TextStyle{Bold: true}
+					label.TextSize = 18
+
+					newBox := container.NewMax(bg, container.NewCenter(label))
+					newBox.Resize(btnSize)
+
+					buttonBoxes[j].Objects = []fyne.CanvasObject{newBox}
+					buttonBoxes[j].Refresh()
+
+				}
+	content.Refresh()
+
+	time.AfterFunc(2*time.Second, func() {
+		loadNextQuestion()
+	})
+}
+			buttons[i] = btn
+			buttonBoxes[i] = box
 		}
 
-		row1 := container.NewGridWithColumns(2, buttons[0], buttons[1])
-		row2 := container.NewGridWithColumns(2, buttons[2], buttons[3])
+		row1 := container.NewGridWithColumns(2, buttonBoxes[0], buttonBoxes[1])
+		row2 := container.NewGridWithColumns(2, buttonBoxes[2], buttonBoxes[3])
 
 		questionContainer := container.NewVBox(
 			layout.NewSpacer(),
@@ -235,7 +287,6 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 			row1,
 			row2,
 			layout.NewSpacer(),
-			resultLabel,
 		)
 
 		content.Objects = []fyne.CanvasObject{questionContainer}
@@ -244,4 +295,3 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 
 	loadNextQuestion()
 }
-
