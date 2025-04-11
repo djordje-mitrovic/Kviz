@@ -24,9 +24,9 @@ func (m myTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	case "background":
 		return color.NRGBA{R: 0, G: 0, B: 0, A: 0}
 	case "button":
-		return color.NRGBA{R: 0, G: 0, B: 129, A: 189}
+		return color.NRGBA{R: 128, G: 128, B: 128, A: 189}
 	case "text":
-		return color.NRGBA{R: 20, G: 20, B: 20, A: 255}
+		return color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 	default:
 		return theme.DefaultTheme().Color(n, v)
 	}
@@ -45,9 +45,11 @@ func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
 }
 
 func main() {
+	//Pravljenje aplikacije
 	a := app.New()
 	a.Settings().SetTheme(&myTheme{})
 
+	//Pravljenje prozora i namestanje dimenzija
 	w := a.NewWindow("Kviz")
 	w.Resize(fyne.NewSize(600, 400))
 
@@ -68,6 +70,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 	title.Alignment = fyne.TextAlignCenter
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
+	//Dugme za kreiranje sobe, kad se kreira soba povezujemo se na server
 	btnCreate := widget.NewButton("Kreiraj sobu", func() {
 		var err error
 		conn, err = net.Dial("tcp", "localhost:8082")
@@ -75,21 +78,27 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 			dialog.ShowError(err, w)
 			return
 		}
+
+		//Saljemo serveru poruku da je soba napravljena
 		conn.Write([]byte("CREATE_ROOM\n"))
 		reader := bufio.NewReader(conn)
 		roomCode, _ := reader.ReadString('\n')
+		//Server salje random izgenerisan kod sobe
 		roomCode = strings.TrimSpace(strings.TrimPrefix(roomCode, "ROOM_CODE "))
 
 		waitLabel := widget.NewLabel("Čeka se drugi igrač")
 		startAnimation(waitLabel)
 
 		info := widget.NewLabel("Tvoj kod sobe: " + roomCode)
+		//Postavljamo labelu na kojoj ce pisati kod koji treba drugi igrac da unese
 		info.Alignment = fyne.TextAlignCenter
 
+		//Dugme koje nas vraca nazad na pocetnu stranu
 		btnBack := widget.NewButton("Nazad", func() {
 			conn.Close()
 			showMainMenu(w, content)
 		})
+
 
 		content.Objects = []fyne.CanvasObject{
 			layout.NewSpacer(),
@@ -102,6 +111,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 		waitForStart(conn, reader, content, w)
 	})
 
+	
 	btnJoin := widget.NewButton("Pridruži se sobi", func() {
 		code := strings.TrimSpace(entryRoomCode.Text)
 		if code == "" {
@@ -109,6 +119,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 			return
 		}
 
+		//Povezivanje klijenta na server
 		var err error
 		conn, err = net.Dial("tcp", "localhost:8082")
 		if err != nil {
@@ -116,18 +127,22 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 			return
 		}
 
+		//Saljemo serveru komandu sa kojom ulazimo u sobu sa prvim igracem koji je napravio sobu
 		conn.Write([]byte("JOIN_ROOM " + code + "\n"))
 		reader := bufio.NewReader(conn)
 		resp, _ := reader.ReadString('\n')
+		//Citamo odgovor od servera
 		resp = strings.TrimSpace(resp)
 		if resp == "ROOM_NOT_FOUND" || resp == "ROOM_FULL" {
 			dialog.ShowInformation("Greška", resp, w)
 			return
 		}
 
+
 		waitLabel := widget.NewLabel("Čeka se početak")
 		startAnimation(waitLabel)
 
+		//Dugme za povratak na pocetni meni
 		btnBack := widget.NewButton("Nazad", func() {
 			conn.Close()
 			showMainMenu(w, content)
@@ -143,6 +158,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 		waitForStart(conn, reader, content, w)
 	})
 
+	//Dodavanje svih komponenti
 	menu := container.NewVBox(
 		layout.NewSpacer(),
 		title,
@@ -158,6 +174,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 }
 
 func startAnimation(label *widget.Label) {
+	//Funkcija koja simulira cekanje tako sto prikazuje . pa .. pa ... i tako u krug
 	go func() {
 		dots := []string{"", ".", "..", "..."}
 		i := 0
@@ -169,6 +186,7 @@ func startAnimation(label *widget.Label) {
 	}()
 }
 
+//Funkcija koja ceka da oba igraca udju u sobu i tad ucitava pitanja
 func waitForStart(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fyne.Window) {
 	go func() {
 		loadQuiz(conn, reader, content, w)
@@ -179,6 +197,7 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 	var loadNextQuestion func()
 
 	loadNextQuestion = func() {
+		//Ucitavamo pitanje koje je stiglo od servera
 		question, err := reader.ReadString('\n')
 		if err != nil {
 			return
@@ -186,10 +205,12 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 		question = strings.TrimSpace(question)
 
 		if strings.HasPrefix(question, "Pobedio") || strings.HasPrefix(question, "Izgubio") || strings.HasPrefix(question, "Nereseno") {
+			//U slucaju da nam je stigo string koji nije pitanje, prikazijuemo samo poruku koja nas obavestava o rezultatu i imamo opciju da se vratimo na pocetak
 			labelEnd := widget.NewLabel(question)
 			labelEnd.Alignment = fyne.TextAlignCenter
 			labelEnd.TextStyle = fyne.TextStyle{Bold: true}
 
+			//Dugme koje vraca na pocetni meni
 			btnBack := widget.NewButton("Vrati se u pocetni meni", func() {
 				conn.Close()
 				showMainMenu(w, content)
@@ -205,10 +226,12 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 			return
 		}
 
+		//Pitanje koje je stiglo se postavlja na labelu
 		labelQuestion := widget.NewLabel(question)
 		labelQuestion.Alignment = fyne.TextAlignCenter
 		labelQuestion.TextStyle = fyne.TextStyle{Bold: true}
 
+		//Ucitavaju se ponudjeni odgovori
 		options := make([]string, 4)
 		for i := 0; i < 4; i++ {
 			options[i], _ = reader.ReadString('\n')
@@ -225,14 +248,17 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 			box := container.NewMax(canvas.NewRectangle(color.White), btn)
 
 			btn.OnTapped = func() {
+				//Na klik dugmeta serveru se salje broj (1-4)
 				conn.Write([]byte(fmt.Sprintf("%d\n", index)))
 				response, _ := reader.ReadString('\n')
+				//Dobija povratnu informaciju od servera da li je resenje koje smo izabrali tacno
 				response = strings.TrimSpace(response)
 
 				var correct int
 				if strings.HasPrefix(response, "TACAN_ODGOVOR") {
 					parts := strings.Split(response, " ")
 					if len(parts) == 2 {
+						//Imamo niz gde je prvi string "TACAN_ODGOVOR" a drugi je neki broj (1-4) na poziciji 1 u nizu
 						fmt.Sscanf(parts[1], "%d", &correct)
 					}
 				}
@@ -243,13 +269,13 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 					// Odredi boju
 					var bgColor color.Color
 					if j+1 == correct {
-						bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // zeleno
+						bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // Zelena boja
 					}
 					if j+1 == index && index != correct {
-						bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // crveno
+						bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // Crvena boja
 					}
 
-					// Napravi labelu umesto dugmeta
+					// Napravi labelu umesto dugmeta da bismo videli koji je odgovor tacan
 					btnSize := btns.Size()
 
 					bg := canvas.NewRectangle(bgColor)
@@ -267,6 +293,7 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 					buttonBoxes[j].Refresh()
 
 				}
+				
 	content.Refresh()
 
 	time.AfterFunc(2*time.Second, func() {
@@ -280,6 +307,7 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 		row1 := container.NewGridWithColumns(2, buttonBoxes[0], buttonBoxes[1])
 		row2 := container.NewGridWithColumns(2, buttonBoxes[2], buttonBoxes[3])
 
+		//Dodavanje svih komponenti u GUI
 		questionContainer := container.NewVBox(
 			layout.NewSpacer(),
 			container.NewCenter(labelQuestion),
