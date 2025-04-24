@@ -31,6 +31,6 @@ Once the client starts, create or join a private room using a code and start pla
 
 ## Contributors
  - [@danica-mijajlovic] (https://github.com/danica-mijajlovic)
- - [@djorjde-mitrovic] (https://github.com/djordje-mitrovic)
+ - [@djordje-mitrovic] (https://github.com/djordje-mitrovic)
  - [@dobrivojetrifunovic] (https://github.com/dobrivojetrifunovic)
    
