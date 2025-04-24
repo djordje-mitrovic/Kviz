@@ -264,7 +264,10 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 				}
 
 				for j := 0; j < 4; j++ {
-					btns := buttonBoxes[j].Objects[1].(*widget.Button)
+					btns, ok := buttonBoxes[j].Objects[1].(*widget.Button)
+					if ok {
+						btns.Disable()
+					}
 
 					// Odredi boju
 					var bgColor color.Color
