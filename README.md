@@ -30,7 +30,7 @@ Simply double-click the client application (e.g., kviz.exe) to launch the quiz i
 Once the client starts, create or join a private room using a code and start playing the quiz in real-time with another player.
 
 ## Contributors
- - [@danica-mijajlovic] (https://github.com/danica-mijajlovic)
- - [@djordje-mitrovic] (https://github.com/djordje-mitrovic)
- - [@dobrivojetrifunovic] (https://github.com/dobrivojetrifunovic)
+ - [@danica-mijajlovic](https://github.com/danica-mijajlovic)
+ - [@djordje-mitrovic](https://github.com/djordje-mitrovic)
+ - [@dobrivojetrifunovic](https://github.com/dobrivojetrifunovic)
    
