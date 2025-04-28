@@ -126,7 +126,7 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 			dialog.ShowError(err, w)
 			return
 		}
-
+//192.168.206.159
 		//Saljemo serveru komandu sa kojom ulazimo u sobu sa prvim igracem koji je napravio sobu
 		conn.Write([]byte("JOIN_ROOM " + code + "\n"))
 		reader := bufio.NewReader(conn)
@@ -242,70 +242,92 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 		buttonBoxes := make([]*fyne.Container, 4)
 
 		for i := 0; i < 4; i++ {
-			index := i + 1
-			opt := options[i]
-			btn := widget.NewButton(opt, nil)
-			box := container.NewMax(canvas.NewRectangle(color.White), btn)
+		    btnIndex := i
+		    opt := options[i]
+		    btn := widget.NewButton(opt, nil)
+		    box := container.NewMax(canvas.NewRectangle(color.White), btn)
 
-			btn.OnTapped = func() {
-				//Na klik dugmeta serveru se salje broj (1-4)
-				conn.Write([]byte(fmt.Sprintf("%d\n", index)))
-				response, _ := reader.ReadString('\n')
-				//Dobija povratnu informaciju od servera da li je resenje koje smo izabrali tacno
-				response = strings.TrimSpace(response)
+		    btn.OnTapped = func() {
+			// Kada kliknemo, prvo zakljucamo sva dugmad
+			for j := 0; j < 4; j++ {
+			    btns, ok := buttonBoxes[j].Objects[1].(*widget.Button)
+			    if ok {
+				btns.Disable()
+			    }
+			}
 
-				var correct int
-				if strings.HasPrefix(response, "TACAN_ODGOVOR") {
-					parts := strings.Split(response, " ")
-					if len(parts) == 2 {
-						//Imamo niz gde je prvi string "TACAN_ODGOVOR" a drugi je neki broj (1-4) na poziciji 1 u nizu
-						fmt.Sscanf(parts[1], "%d", &correct)
-					}
-				}
+			// Obojimo izabrano dugme plavom bojom odmah
+			btnSize := btn.Size()
+			bg := canvas.NewRectangle(color.RGBA{R: 0, G: 122, B: 255, A: 255}) // plava
+			bg.SetMinSize(btnSize)
 
-				for j := 0; j < 4; j++ {
-					btns, ok := buttonBoxes[j].Objects[1].(*widget.Button)
-					if ok {
-						btns.Disable()
-					}
+			label := canvas.NewText(btn.Text, color.White)
+			label.Alignment = fyne.TextAlignCenter
+			label.TextStyle = fyne.TextStyle{Bold: true}
+			label.TextSize = 18
 
-					// Odredi boju
-					var bgColor color.Color
-					if j+1 == correct {
-						bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // Zelena boja
-					}
-					if j+1 == index && index != correct {
-						bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // Crvena boja
-					}
+			newBox := container.NewMax(bg, container.NewCenter(label))
+			newBox.Resize(btnSize)
 
-					// Napravi labelu umesto dugmeta da bismo videli koji je odgovor tacan
-					btnSize := btns.Size()
+			buttonBoxes[btnIndex].Objects = []fyne.CanvasObject{newBox}
+			buttonBoxes[btnIndex].Refresh()
 
-					bg := canvas.NewRectangle(bgColor)
-					bg.SetMinSize(btnSize)
+			content.Refresh()
 
-					label := canvas.NewText(btns.Text, color.White)
-					label.Alignment = fyne.TextAlignCenter
-					label.TextStyle = fyne.TextStyle{Bold: true}
-					label.TextSize = 18
+			// Sada tek šaljemo serveru
+			conn.Write([]byte(fmt.Sprintf("%d\n", btnIndex+1)))
 
-					newBox := container.NewMax(bg, container.NewCenter(label))
-					newBox.Resize(btnSize)
+			// Cekamo odgovor sa servera (TACAN_ODGOVOR x)
+			response, _ := reader.ReadString('\n')
+			response = strings.TrimSpace(response)
 
-					buttonBoxes[j].Objects = []fyne.CanvasObject{newBox}
-					buttonBoxes[j].Refresh()
+			var correct int
+			if strings.HasPrefix(response, "TACAN_ODGOVOR") {
+			    parts := strings.Split(response, " ")
+			    if len(parts) == 2 {
+				fmt.Sscanf(parts[1], "%d", &correct)
+			    }
+			}
 
-				}
-				
-	content.Refresh()
+			// Obojimo sve dugmice kako treba
+			for j := 0; j < 4; j++ {
+			    var bgColor color.Color
 
-	time.AfterFunc(2*time.Second, func() {
-		loadNextQuestion()
-	})
-}
-			buttons[i] = btn
-			buttonBoxes[i] = box
+			    if j+1 == correct {
+				bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // Zelena
+			    }
+			    if j == btnIndex && btnIndex+1 != correct {
+				bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // Crvena
+			    }
+
+			    btnSize := fyne.NewSize(300, 40)
+
+			    bg := canvas.NewRectangle(bgColor)
+			    bg.SetMinSize(btnSize)
+
+			    label := canvas.NewText(options[j], color.White)
+			    label.Alignment = fyne.TextAlignCenter
+			    label.TextStyle = fyne.TextStyle{Bold: true}
+			    label.TextSize = 18
+
+			    newBox := container.NewMax(bg, container.NewCenter(label))
+			    newBox.Resize(btnSize)
+
+			    buttonBoxes[j].Objects = []fyne.CanvasObject{newBox}
+			    buttonBoxes[j].Refresh()
+			}
+
+			content.Refresh()
+
+			time.AfterFunc(2*time.Second, func() {
+			    loadNextQuestion()
+			})
+		    }
+
+		    buttons[i] = btn
+		    buttonBoxes[i] = box
 		}
+
 
 		row1 := container.NewGridWithColumns(2, buttonBoxes[0], buttonBoxes[1])
 		row2 := container.NewGridWithColumns(2, buttonBoxes[2], buttonBoxes[3])
