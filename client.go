@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"image/color"
 	"net"
+	"os"
 	"strings"
 	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -31,8 +33,8 @@ func (m myTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 		return theme.DefaultTheme().Color(n, v)
 	}
 }
-func (m myTheme) Font(style fyne.TextStyle) fyne.Resource      { return theme.DefaultTheme().Font(style) }
-func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource   { return theme.DefaultTheme().Icon(name) }
+func (m myTheme) Font(style fyne.TextStyle) fyne.Resource    { return theme.DefaultTheme().Font(style) }
+func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(name) }
 func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case "text":
@@ -60,6 +62,25 @@ func main() {
 	w.ShowAndRun()
 }
 
+func readAddressFromFile(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		return strings.TrimSpace(scanner.Text()), nil
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", nil
+}
+
 func showMainMenu(w fyne.Window, content *fyne.Container) {
 	entryRoomCode := widget.NewEntry()
 	entryRoomCode.SetPlaceHolder("Unesi kod sobe")
@@ -73,7 +94,8 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 	//Dugme za kreiranje sobe, kad se kreira soba povezujemo se na server
 	btnCreate := widget.NewButton("Kreiraj sobu", func() {
 		var err error
-		conn, err = net.Dial("tcp", "localhost:8082")
+		address, err := readAddressFromFile("config.txt")
+		conn, err = net.Dial("tcp", address)
 		if err != nil {
 			dialog.ShowError(err, w)
 			return
@@ -99,7 +121,6 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 			showMainMenu(w, content)
 		})
 
-
 		content.Objects = []fyne.CanvasObject{
 			layout.NewSpacer(),
 			info,
@@ -111,7 +132,6 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 		waitForStart(conn, reader, content, w)
 	})
 
-	
 	btnJoin := widget.NewButton("Pridruži se sobi", func() {
 		code := strings.TrimSpace(entryRoomCode.Text)
 		if code == "" {
@@ -121,12 +141,13 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 
 		//Povezivanje klijenta na server
 		var err error
-		conn, err = net.Dial("tcp", "localhost:8082")
+		address, err := readAddressFromFile("config.txt")
+		conn, err = net.Dial("tcp", address)
 		if err != nil {
 			dialog.ShowError(err, w)
 			return
 		}
-//192.168.206.159
+		//192.168.206.159
 		//Saljemo serveru komandu sa kojom ulazimo u sobu sa prvim igracem koji je napravio sobu
 		conn.Write([]byte("JOIN_ROOM " + code + "\n"))
 		reader := bufio.NewReader(conn)
@@ -137,7 +158,6 @@ func showMainMenu(w fyne.Window, content *fyne.Container) {
 			dialog.ShowInformation("Greška", resp, w)
 			return
 		}
-
 
 		waitLabel := widget.NewLabel("Čeka se početak")
 		startAnimation(waitLabel)
@@ -186,7 +206,7 @@ func startAnimation(label *widget.Label) {
 	}()
 }
 
-//Funkcija koja ceka da oba igraca udju u sobu i tad ucitava pitanja
+// Funkcija koja ceka da oba igraca udju u sobu i tad ucitava pitanja
 func waitForStart(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fyne.Window) {
 	go func() {
 		loadQuiz(conn, reader, content, w)
@@ -242,92 +262,91 @@ func loadQuiz(conn net.Conn, reader *bufio.Reader, content *fyne.Container, w fy
 		buttonBoxes := make([]*fyne.Container, 4)
 
 		for i := 0; i < 4; i++ {
-		    btnIndex := i
-		    opt := options[i]
-		    btn := widget.NewButton(opt, nil)
-		    box := container.NewMax(canvas.NewRectangle(color.White), btn)
+			btnIndex := i
+			opt := options[i]
+			btn := widget.NewButton(opt, nil)
+			box := container.NewMax(canvas.NewRectangle(color.White), btn)
 
-		    btn.OnTapped = func() {
-			// Kada kliknemo, prvo zakljucamo sva dugmad
-			for j := 0; j < 4; j++ {
-			    btns, ok := buttonBoxes[j].Objects[1].(*widget.Button)
-			    if ok {
-				btns.Disable()
-			    }
+			btn.OnTapped = func() {
+				// Kada kliknemo, prvo zakljucamo sva dugmad
+				for j := 0; j < 4; j++ {
+					btns, ok := buttonBoxes[j].Objects[1].(*widget.Button)
+					if ok {
+						btns.Disable()
+					}
+				}
+
+				// Obojimo izabrano dugme plavom bojom odmah
+				btnSize := btn.Size()
+				bg := canvas.NewRectangle(color.RGBA{R: 0, G: 122, B: 255, A: 255}) // plava
+				bg.SetMinSize(btnSize)
+
+				label := canvas.NewText(btn.Text, color.White)
+				label.Alignment = fyne.TextAlignCenter
+				label.TextStyle = fyne.TextStyle{Bold: true}
+				label.TextSize = 18
+
+				newBox := container.NewMax(bg, container.NewCenter(label))
+				newBox.Resize(btnSize)
+
+				buttonBoxes[btnIndex].Objects = []fyne.CanvasObject{newBox}
+				buttonBoxes[btnIndex].Refresh()
+
+				content.Refresh()
+
+				// Sada tek šaljemo serveru
+				conn.Write([]byte(fmt.Sprintf("%d\n", btnIndex+1)))
+
+				// Cekamo odgovor sa servera (TACAN_ODGOVOR x)
+				response, _ := reader.ReadString('\n')
+				response = strings.TrimSpace(response)
+
+				var correct int
+				if strings.HasPrefix(response, "TACAN_ODGOVOR") {
+					parts := strings.Split(response, " ")
+					if len(parts) == 2 {
+						fmt.Sscanf(parts[1], "%d", &correct)
+					}
+				}
+
+				// Obojimo sve dugmice kako treba
+				for j := 0; j < 4; j++ {
+					var bgColor color.Color
+
+					if j+1 == correct {
+						bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // Zelena
+					}
+					if j == btnIndex && btnIndex+1 != correct {
+						bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // Crvena
+					}
+
+					btnSize := fyne.NewSize(300, 40)
+
+					bg := canvas.NewRectangle(bgColor)
+					bg.SetMinSize(btnSize)
+
+					label := canvas.NewText(options[j], color.White)
+					label.Alignment = fyne.TextAlignCenter
+					label.TextStyle = fyne.TextStyle{Bold: true}
+					label.TextSize = 18
+
+					newBox := container.NewMax(bg, container.NewCenter(label))
+					newBox.Resize(btnSize)
+
+					buttonBoxes[j].Objects = []fyne.CanvasObject{newBox}
+					buttonBoxes[j].Refresh()
+				}
+
+				content.Refresh()
+
+				time.AfterFunc(2*time.Second, func() {
+					loadNextQuestion()
+				})
 			}
 
-			// Obojimo izabrano dugme plavom bojom odmah
-			btnSize := btn.Size()
-			bg := canvas.NewRectangle(color.RGBA{R: 0, G: 122, B: 255, A: 255}) // plava
-			bg.SetMinSize(btnSize)
-
-			label := canvas.NewText(btn.Text, color.White)
-			label.Alignment = fyne.TextAlignCenter
-			label.TextStyle = fyne.TextStyle{Bold: true}
-			label.TextSize = 18
-
-			newBox := container.NewMax(bg, container.NewCenter(label))
-			newBox.Resize(btnSize)
-
-			buttonBoxes[btnIndex].Objects = []fyne.CanvasObject{newBox}
-			buttonBoxes[btnIndex].Refresh()
-
-			content.Refresh()
-
-			// Sada tek šaljemo serveru
-			conn.Write([]byte(fmt.Sprintf("%d\n", btnIndex+1)))
-
-			// Cekamo odgovor sa servera (TACAN_ODGOVOR x)
-			response, _ := reader.ReadString('\n')
-			response = strings.TrimSpace(response)
-
-			var correct int
-			if strings.HasPrefix(response, "TACAN_ODGOVOR") {
-			    parts := strings.Split(response, " ")
-			    if len(parts) == 2 {
-				fmt.Sscanf(parts[1], "%d", &correct)
-			    }
-			}
-
-			// Obojimo sve dugmice kako treba
-			for j := 0; j < 4; j++ {
-			    var bgColor color.Color
-
-			    if j+1 == correct {
-				bgColor = color.RGBA{R: 11, G: 156, B: 49, A: 255} // Zelena
-			    }
-			    if j == btnIndex && btnIndex+1 != correct {
-				bgColor = color.RGBA{R: 255, G: 0, B: 0, A: 255} // Crvena
-			    }
-
-			    btnSize := fyne.NewSize(300, 40)
-
-			    bg := canvas.NewRectangle(bgColor)
-			    bg.SetMinSize(btnSize)
-
-			    label := canvas.NewText(options[j], color.White)
-			    label.Alignment = fyne.TextAlignCenter
-			    label.TextStyle = fyne.TextStyle{Bold: true}
-			    label.TextSize = 18
-
-			    newBox := container.NewMax(bg, container.NewCenter(label))
-			    newBox.Resize(btnSize)
-
-			    buttonBoxes[j].Objects = []fyne.CanvasObject{newBox}
-			    buttonBoxes[j].Refresh()
-			}
-
-			content.Refresh()
-
-			time.AfterFunc(2*time.Second, func() {
-			    loadNextQuestion()
-			})
-		    }
-
-		    buttons[i] = btn
-		    buttonBoxes[i] = box
+			buttons[i] = btn
+			buttonBoxes[i] = box
 		}
-
 
 		row1 := container.NewGridWithColumns(2, buttonBoxes[0], buttonBoxes[1])
 		row2 := container.NewGridWithColumns(2, buttonBoxes[2], buttonBoxes[3])
