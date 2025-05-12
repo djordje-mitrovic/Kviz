@@ -1,5 +1,6 @@
 ![Quiz](banner.png)
-![Language](https://img.shields.io/badge/Language-Go-blue.svg)
+![Language | Go](https://img.shields.io/badge/Language-Go-brightgreen)
+![OS | Linux](https://img.shields.io/badge/OS-Linux-brightgreen)
 
 
 # Quiz
@@ -17,6 +18,17 @@ This project is two-player quiz game written in go programming language. In this
 - **Fyne**: GUI library used to create the client interface.
 - **SQLite**: Lightweight database used to store quiz content.
 - **TCP**: Enables real-time network communication for multiplayer gameplay.
+
+## Installation
+Copy this in your Linux terminal to get necessary libraries:
+
+```bash
+sudo apt update
+sudo apt install sqlite3
+go get github.com/mattn/go-sqlite3
+go get fyne.io/fyne/v2
+go install fyne.io/fyne/v2/cmd/fyne-cross@latest
+```
 
 ## How to run 
 **1. Run the server**
