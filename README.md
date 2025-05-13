@@ -42,6 +42,7 @@ make
 You can now find and launch Kviz from your application menu.
 
 ## How to run 
+
 **1. Run the server**
    Use the terminal to run the server:
    
@@ -51,6 +52,7 @@ You can now find and launch Kviz from your application menu.
 The server will start and wait for players to connect via TCP.
 
 **2. Run the clients**
+
 Simply double-click the client application (e.g., kviz.exe) to launch the quiz interface.
 Once the client starts, create or join a private room using a code and start playing the quiz in real-time with another player.
 
