@@ -29,6 +29,16 @@ go get github.com/mattn/go-sqlite3
 go get fyne.io/fyne/v2
 go install fyne.io/fyne/v2/cmd/fyne-cross@latest
 ```
+After that:
+
+1. Download all the files from this repository (or clone it using `git clone`).
+2. Open a terminal inside the project folder.
+3. Run:
+
+```bash
+make
+
+You can now find and launch Kviz from your application menu.
 
 ## How to run 
 **1. Run the server**
