@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Kviz
+Exec=@HOME@/.local/bin/kviz
+Icon=@HOME@/.local/share/icons/kviz.png
+Terminal=false
+Type=Application
+Categories=Game;
+
