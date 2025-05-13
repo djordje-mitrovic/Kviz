@@ -37,6 +37,7 @@ After that:
 
 ```bash
 make
+```
 
 You can now find and launch Kviz from your application menu.
 
