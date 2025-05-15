@@ -49,9 +49,12 @@ You can now find and launch Kviz from your application menu.
   ```bash
   go run server.go
   ```
-The server will start and wait for players to connect via TCP.
+The server will start and wait for players to connect via TCP. 
 
 **2. Run the clients**
+
+Before running the application, you need to specify the server IP address in the _config.txt_ file (e.g. 192.168.111.111:8082).
+Important: Do not change the port number :8082. Only replace the IP address with the correct one for your server.
 
 Simply double-click the client application (e.g., kviz.exe) to launch the quiz interface.
 Once the client starts, create or join a private room using a code and start playing the quiz in real-time with another player.
